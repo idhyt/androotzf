@@ -2,6 +2,10 @@
 #+OPTIONS: toc:nil
 #+AUTHOR: idhyt
 
+[[https://github.com/idhyt/androotzf][androotzf]] 最近整理电脑时看到的吃灰代码, 早期研究 Android Root 时做的提权方案.
+
+感激曾经一起学习和共事的伙伴们, 开源大部分功能为后来者提供一套学习素材.
+
 ** Warning
 
 *请遵守GPL开源协议, 请遵守法律法规, 本项目仅供学习和交流, 请勿用于非法用途!*
@@ -9,8 +13,6 @@
 *道路千万条, 安全第一条, 行车不规范, 亲人两行泪.*
 
 ** Android Root Zap Framework [100%]
-
-早期研究 Android Root 时做的提权方案和部分漏洞的利用和适配, 感激曾经一起学习和共事的伙伴们.
 
 - [X] 通用的序列化root适配参数
 - [X] 非常容易集成, 只需要根据漏洞实现任意读写即可
