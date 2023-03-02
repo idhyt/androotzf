@@ -38,7 +38,7 @@
 
 *1041*: CVE-2015-3636 适配了nexus4等机型
 
-*1051*: CVE-2016-5159 dirtycow漏洞, android 5.0以下机型
+*1051*: CVE-2016-5195 dirtycow漏洞, android 5.0以下机型
 
 ** Build
 
@@ -367,3 +367,7 @@ p_patch:
   902 = 4000, 4
 
 #+end_src
+
+** References
+
+[[https://idhyt.blogspot.com/2019/01/cve-2017-8890.html][cve-2017-8890]], [[https://idhyt.blogspot.com/2016/10/cve-2016-5195.html][cve-2016-5195]], [[https://idhyt.blogspot.com/2016/03/cve-2015-3636.html][cve-2015-3636]], [[https://idhyt.blogspot.com/2016/07/cve-2015-1805.html][cve-2015-1805]]
